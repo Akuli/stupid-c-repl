@@ -44,6 +44,8 @@ def main():
 
     directives = ''
     tempdir = tempfile.mkdtemp()
+    sources = []
+    nested_level = 0
 
     print("Welcome to this program! Type HELP to get started.")
     try:
@@ -72,21 +74,25 @@ def main():
                 directives += source
                 directives += '\n'
                 continue
+            
+            if '{' in source: nested_level += 1
+            if '}' in source: nested_level -= 1
+            sources.append(source)
+            if nested_level == 0:
+                ready_source = SOURCE_TEMPLATE % {
+                    'source': ''.join(sources),
+                    'directives': directives,
+                    'this file': __file__}
+                with open(os.path.join(tempdir, 'source.c'), 'w') as f:
+                    f.write(ready_source)
 
-            ready_source = SOURCE_TEMPLATE % {
-                'source': source,
-                'directives': directives,
-                'this file': __file__}
-            with open(os.path.join(tempdir, 'source.c'), 'w') as f:
-                f.write(ready_source)
-
-            cc_args = ([cc] + shlex.split(cflags) + ['source.c']
-                       + shlex.split(libs))
-            if run(cc_args, cwd=tempdir) == 0:
-                if platform.system() == 'Windows':
-                    run([os.path.join(tempdir, 'a.exe')])
-                else:
-                    run([os.path.join(tempdir, 'a.out')])
+                cc_args = ([cc] + shlex.split(cflags) + ['source.c']
+                           + shlex.split(libs))
+                if run(cc_args, cwd=tempdir) == 0:
+                    if platform.system() == 'Windows':
+                        run([os.path.join(tempdir, 'a.exe')])
+                    else:
+                        run([os.path.join(tempdir, 'a.out')])
 
     finally:
         shutil.rmtree(tempdir)
